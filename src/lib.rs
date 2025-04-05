@@ -1,2 +1,3 @@
-pub mod routes;
-pub mod startup;
+pub mod api;
+pub mod app;
+pub mod config;
