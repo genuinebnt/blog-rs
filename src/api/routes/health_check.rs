@@ -7,6 +7,6 @@ use std::sync::Arc;
 
 pub fn router(state: Arc<AppState>) -> Router {
     Router::new()
-        .route("/health_check", get(health_check))
+        .route("/", get(health_check))
         .with_state(state)
 }
