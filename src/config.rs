@@ -3,8 +3,8 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct Settings {
-    pub app_settings: AppSettings,
-    pub database_settings: DatabaseSettings,
+    pub application: AppSettings,
+    pub database: DatabaseSettings,
 }
 
 #[derive(Debug, Deserialize)]
@@ -24,9 +24,7 @@ pub struct DatabaseSettings {
 
 impl Settings {
     pub fn new() -> Result<Self, config::ConfigError> {
-        let base_path = std::env::current_dir()
-            .expect("Failed to get current directory")
-            .join("config");
+        let base_path = std::env::current_dir().expect("Failed to get current directory");
 
         let configuration_directory = base_path.join("configuration");
         let environment: Environment = std::env::var("APP_ENV")
