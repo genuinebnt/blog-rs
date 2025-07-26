@@ -1,0 +1,20 @@
+services:
+  app:
+    environment:
+      - RUST_LOG=debug
+      - CARGO_INCREMENTAL=1
+    volumes:
+      - .:/app
+      - cargo-cache:/usr/local/cargo/registry
+      - target-cache:/app/target
+    command: cargo watch -x run
+
+  db:
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_PASSWORD=password
+
+volumes:
+  cargo-cache:
+  target-cache:
