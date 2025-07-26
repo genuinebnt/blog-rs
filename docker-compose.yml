@@ -1,11 +1,10 @@
-# docker-compose.yml (base configuration)
 services:
   app:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "${APP_PORT:-8080}:8080"
+      - "${APP_PORT:-3000}:3000"
     environment:
       - RUST_LOG=${RUST_LOG:-info}
       - DATABASE_URL=${DATABASE_URL}
@@ -28,8 +27,6 @@ services:
       - db
       #- redis
     restart: unless-stopped
-    networks:
-      - app-network
 
   db:
     image: postgres:15-alpine
@@ -43,8 +40,6 @@ services:
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     restart: unless-stopped
-    networks:
-      - app-network
 
   # redis:
   #   image: redis:7-alpine
@@ -61,7 +56,3 @@ volumes:
   redis_data:
   cargo-cache:
   target-cache:
-
-networks:
-  app-network:
-    driver: bridge

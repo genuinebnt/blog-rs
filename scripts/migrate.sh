@@ -16,9 +16,8 @@ if [ "$1" = "help" ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
     echo "Usage: $0 <environment> <command> [args...]"
     echo ""
     echo "Environments:"
-    echo "  dev        - Development environment (.env.dev)"
-    echo "  prod       - Production environment (.env.prod)"
-    echo "  staging    - Staging environment (.env.staging)"
+    echo "  dev        - Development environment (.env.development)"
+    echo "  prod       - Production environment (.env.production)"
     echo ""
     echo "Commands:"
     echo "  run        - Run pending migrations"
@@ -61,12 +60,12 @@ log_error() { echo -e "${RED}❌ $1${NC}"; }
 # Function to load environment variables
 load_env() {
     local env_file=".env.$1"
-    
+
     if [ ! -f "$env_file" ]; then
         log_error "Environment file $env_file not found"
         exit 1
     fi
-    
+
     log_info "Loading environment from $env_file"
     export $(cat "$env_file" | grep -v '^#' | grep -v '^$' | xargs)
 }
@@ -96,15 +95,12 @@ run_sqlx() {
 
 # Validate environment
 case $ENVIRONMENT in
-"dev"|"development")
-    ENVIRONMENT="dev"
+"dev" | "development")
+    ENVIRONMENT="development"
     ;;
-"prod"|"production")
-    ENVIRONMENT="prod"
+"prod" | "production")
+    ENVIRONMENT="production"
     USE_DOCKER="true"
-    ;;
-"staging")
-    ENVIRONMENT="staging"
     ;;
 *)
     log_error "Invalid environment: $ENVIRONMENT"
@@ -129,7 +125,7 @@ if [ "$ENVIRONMENT" = "dev" ] && [ -n "$APP_DATABASE__HOST" ]; then
     DB_USER="$APP_DATABASE__USERNAME"
     DB_PASS="$APP_DATABASE__PASSWORD"
     DB_NAME="$APP_DATABASE__DATABASE_NAME"
-    
+
     # Use the constructed URL for Docker context
     if check_docker_context; then
         DATABASE_URL="postgresql://$DB_USER:$DB_PASS@$DB_HOST:$DB_PORT/$DB_NAME"
@@ -137,7 +133,7 @@ if [ "$ENVIRONMENT" = "dev" ] && [ -n "$APP_DATABASE__HOST" ]; then
 fi
 
 export DATABASE_URL
-log_info "Using database: $(echo $DATABASE_URL | sed 's/:.*@/:***@/')"
+log_info "Using database: $(echo "$DATABASE_URL" | sed 's/:.*@/:***@/')"
 log_info "Environment: $ENVIRONMENT"
 
 case $COMMAND in
@@ -160,7 +156,7 @@ case $COMMAND in
             exit 1
         fi
     fi
-    
+
     if run_sqlx migrate revert; then
         log_success "Migration reverted successfully"
     else
@@ -179,7 +175,7 @@ case $COMMAND in
         log_info "Usage: $0 $ENVIRONMENT add <migration_name>"
         exit 1
     fi
-    
+
     log_info "Creating new migration: $MIGRATION_NAME"
     if sqlx migrate add "$MIGRATION_NAME"; then
         log_success "Migration file created: migrations/*_$MIGRATION_NAME.sql"
@@ -195,12 +191,12 @@ case $COMMAND in
         log_error "Database reset is not allowed in production environment!"
         exit 1
     fi
-    
+
     read -p "Are you sure you want to reset the $ENVIRONMENT database? Type 'RESET' to confirm: " -r
     echo
     if [ "$REPLY" = "RESET" ]; then
         DB_NAME=$(echo "$DATABASE_URL" | sed 's/.*\///')
-        
+
         log_info "Dropping database $DB_NAME..."
         if sqlx database drop -y --database-url "$DATABASE_URL"; then
             log_success "Database dropped"
@@ -249,14 +245,14 @@ case $COMMAND in
     log_info "Checking database connection and migration status for $ENVIRONMENT..."
 
     # Check if database exists and is reachable
-    if run_sqlx migrate info > /dev/null 2>&1; then
+    if run_sqlx migrate info >/dev/null 2>&1; then
         log_success "Database is reachable"
         echo
         run_sqlx migrate info
     else
         log_error "Cannot connect to database"
-        log_info "Database URL: $(echo $DATABASE_URL | sed 's/:.*@/:***@/')"
-        
+        log_info "Database URL: $(echo "$DATABASE_URL" | sed 's/:.*@/:***@/')"
+
         # Try to provide helpful debugging info
         if [ "$ENVIRONMENT" = "dev" ]; then
             log_info "For development, make sure your Docker containers are running:"
@@ -267,10 +263,10 @@ case $COMMAND in
     ;;
 "dry-run")
     log_info "Performing dry-run for $ENVIRONMENT environment..."
-    log_info "This would connect to: $(echo $DATABASE_URL | sed 's/:.*@/:***@/')"
-    
+    log_info "This would connect to: $(echo "$DATABASE_URL" | sed 's/:.*@/:***@/')"
+
     # Just test the connection without running migrations
-    if run_sqlx migrate info > /dev/null 2>&1; then
+    if run_sqlx migrate info >/dev/null 2>&1; then
         log_success "Connection test passed"
         log_info "Pending migrations:"
         run_sqlx migrate info | grep -E "^[0-9]+" | grep -v "applied" || log_info "No pending migrations"

@@ -1,5 +1,5 @@
-use std::env;
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
+use std::env;
 
 #[derive(serde::Deserialize, Clone)]
 pub struct Settings {
@@ -42,19 +42,18 @@ impl DatabaseSettings {
 
 pub fn get_configuration() -> Result<Settings, config::ConfigError> {
     // Determine the environment
-    let env = env::var("APP_ENVIRONMENT")
-        .unwrap_or_else(|_| "development".to_string());
+    let env = env::var("APP_ENVIRONMENT").unwrap_or_else(|_| "development".to_string());
     let environment: Environment = env.as_str().try_into().expect("Invalid environment");
-    
+
     // Load the .env file based on environment
     let env_file = format!(".env.{}", environment.as_str());
     if std::path::Path::new(&env_file).exists() {
         dotenvy::from_filename(&env_file).ok();
-        println!("📋 Loaded environment from: {}", env_file);
+        tracing::info!("📋 Loaded environment from: {}", env_file);
     } else {
         // Fallback to default .env file
         dotenvy::dotenv().ok();
-        println!("📋 Loaded environment from: .env (fallback)");
+        tracing::info!("📋 Loaded environment from: .env (fallback)");
     }
 
     let settings = config::Config::builder()

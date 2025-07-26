@@ -1,7 +1,9 @@
 use crate::startup::AppState;
-use axum::{Form, extract::State, response::IntoResponse};
+use axum::{Form, extract::State, response::IntoResponse, http::HeaderMap};
 use reqwest::StatusCode;
 use std::sync::Arc;
+use axum::response::Response;
+use axum::http::header;
 
 #[derive(Debug, serde::Deserialize)]
 pub struct FormData {
@@ -11,10 +13,17 @@ pub struct FormData {
 
 pub async fn subscribe(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Form(form_data): Form<FormData>,
 ) -> impl IntoResponse {
+    let request_id = headers
+        .get("x-request-id")
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("unknown");
+    
+    tracing::info!(request_id = %request_id, "Received subscription request: {:?}", form_data);
     // Insert the subscriber into the database
-    let _result = sqlx::query!(
+    match sqlx::query!(
         "INSERT INTO users (id, email, name, password, created_at) VALUES ($1, $2, $3, $4, $5)",
         uuid::Uuid::new_v4(),
         form_data.email,
@@ -23,7 +32,18 @@ pub async fn subscribe(
         chrono::Utc::now()
     )
     .execute(&state.db_pool)
-    .await;
+    .await
+    {
+        Ok(_) => tracing::info!("Subscriber added: {}", form_data.email),
+        Err(e) => {
+            tracing::error!("Failed to add subscriber: {}", e);
+            let mut error_response = StatusCode::INTERNAL_SERVER_ERROR.into_response();
+            error_response.headers_mut().insert("x-request-id", request_id.parse().unwrap());
+            return error_response;
+        }
+    };
 
-    StatusCode::OK
+    let mut response = StatusCode::OK.into_response();
+    response.headers_mut().insert("x-request-id", request_id.parse().unwrap());
+    response
 }
