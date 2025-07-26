@@ -1,3 +1,4 @@
+use std::env;
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
 
 #[derive(serde::Deserialize, Clone)]
@@ -40,6 +41,22 @@ impl DatabaseSettings {
 }
 
 pub fn get_configuration() -> Result<Settings, config::ConfigError> {
+    // Determine the environment
+    let env = env::var("APP_ENVIRONMENT")
+        .unwrap_or_else(|_| "development".to_string());
+    let environment: Environment = env.as_str().try_into().expect("Invalid environment");
+    
+    // Load the .env file based on environment
+    let env_file = format!(".env.{}", environment.as_str());
+    if std::path::Path::new(&env_file).exists() {
+        dotenvy::from_filename(&env_file).ok();
+        println!("📋 Loaded environment from: {}", env_file);
+    } else {
+        // Fallback to default .env file
+        dotenvy::dotenv().ok();
+        println!("📋 Loaded environment from: .env (fallback)");
+    }
+
     let settings = config::Config::builder()
         // Add in settings from environment variables (with a prefix of APP and '__' as separator)
         // E.g. `APP_APPLICATION__PORT=5001 would set `Settings.application.port`
@@ -51,4 +68,30 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
         .build()?;
 
     settings.try_deserialize::<Settings>()
+}
+
+pub enum Environment {
+    Development,
+    Production,
+}
+
+impl Environment {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Environment::Development => "development",
+            Environment::Production => "production",
+        }
+    }
+}
+
+impl TryFrom<&str> for Environment {
+    type Error = &'static str;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "development" => Ok(Environment::Development),
+            "production" => Ok(Environment::Production),
+            _ => Err("Invalid environment"),
+        }
+    }
 }

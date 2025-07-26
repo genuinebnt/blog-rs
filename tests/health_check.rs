@@ -14,8 +14,8 @@ async fn health_check_works() {
 
     assert_eq!(200, response.status().as_u16());
 
-    sqlx::query!("SELECT 1")
-        .execute(app.db_pool.acquire().await.unwrap())
+    sqlx::query!("SELECT 1 as test_column")
+        .fetch_one(&app.db_pool)
         .await
         .expect("Failed to execute query");
 }

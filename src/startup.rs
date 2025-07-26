@@ -10,7 +10,7 @@ use crate::routes::{health_check::health_check, subscribe::subscribe};
 
 #[derive(Debug)]
 pub struct AppState {
-    db_pool: sqlx::PgPool,
+    pub db_pool: sqlx::PgPool,
 }
 
 pub async fn router(opt: PgConnectOptions) -> Router {

@@ -26,8 +26,8 @@ if [ "$1" = "help" ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
     echo "Usage: $0 <environment> <command> [args...]"
     echo ""
     echo "Environments:"
-    echo "  dev        - Development environment (.env.dev)"
-    echo "  prod       - Production environment (.env.prod)"
+    echo "  dev        - Development environment (.env.development)"
+    echo "  prod       - Production environment (.env.production)"
     echo "  secrets    - Manage Docker secrets"
     echo ""
     echo "Development Commands:"
@@ -71,7 +71,7 @@ if [ "$1" = "help" ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
     exit 0
 fi
 
-ENVIRONMENT=${1:-dev}
+ENVIRONMENT=${1:-development}
 COMMAND=${2:-up}
 
 # Function to load and validate environment
@@ -164,14 +164,14 @@ check_docker
 
 case $ENVIRONMENT in
 "dev" | "development")
-    ENVIRONMENT="dev"
+    ENVIRONMENT="development"
     log_header "Starting development environment..."
-    load_environment "dev"
+    load_environment "development"
 
     case $COMMAND in
     "up")
         log_step "Starting services..."
-        docker-compose -f docker-compose.yml -f docker-compose.dev.yml up "${@:3}"
+        docker-compose -f docker-compose.yml -f docker-compose.development.yml up "${@:3}"
         if [[ "${@:3}" == *"-d"* ]]; then
             log_step "Waiting for services to be ready..."
             sleep 5
@@ -184,29 +184,29 @@ case $ENVIRONMENT in
         ;;
     "down")
         log_step "Stopping services..."
-        docker-compose -f docker-compose.yml -f docker-compose.dev.yml down "${@:3}"
+        docker-compose -f docker-compose.yml -f docker-compose.development.yml down "${@:3}"
         log_success "Development environment stopped"
         ;;
     "restart")
         log_step "Restarting services..."
-        docker-compose -f docker-compose.yml -f docker-compose.dev.yml restart "${@:3}"
+        docker-compose -f docker-compose.yml -f docker-compose.development.yml restart "${@:3}"
         log_success "Services restarted"
         ;;
     "logs")
-        docker-compose -f docker-compose.yml -f docker-compose.dev.yml logs "${@:3}"
+        docker-compose -f docker-compose.yml -f docker-compose.development.yml logs "${@:3}"
         ;;
     "build")
         log_step "Building images..."
-        docker-compose -f docker-compose.yml -f docker-compose.dev.yml build "${@:3}"
+        docker-compose -f docker-compose.yml -f docker-compose.development.yml build "${@:3}"
         log_success "Images built successfully"
         ;;
     "ps")
-        docker-compose -f docker-compose.yml -f docker-compose.dev.yml ps
+        docker-compose -f docker-compose.yml -f docker-compose.development.yml ps
         ;;
     "shell")
         SERVICE=${3:-app}
         log_info "Opening shell in $SERVICE container..."
-        docker-compose -f docker-compose.yml -f docker-compose.dev.yml exec "$SERVICE" /bin/bash
+        docker-compose -f docker-compose.yml -f docker-compose.development.yml exec "$SERVICE" /bin/bash
         ;;
     "clean")
         log_step "Cleaning up unused Docker resources..."
@@ -215,7 +215,7 @@ case $ENVIRONMENT in
         log_success "Cleanup completed"
         ;;
     "health")
-        check_connectivity "dev"
+        check_connectivity "development"
         ;;
     *)
         log_error "Unknown development command: $COMMAND"
@@ -226,9 +226,9 @@ case $ENVIRONMENT in
     ;;
 
 "prod" | "production")
-    ENVIRONMENT="prod"
+    ENVIRONMENT="production"
     log_header "Deploying to production environment..."
-    load_environment "prod"
+    load_environment "production"
 
     # Check if Docker Swarm is initialized
     if ! docker info | grep -q "Swarm: active"; then
@@ -253,7 +253,7 @@ case $ENVIRONMENT in
     case $COMMAND in
     "up" | "deploy")
         log_step "Deploying to Docker Swarm..."
-        docker stack deploy -c docker-compose.yml -c docker-compose.prod.yml axum-blog
+        docker stack deploy -c docker-compose.yml -c docker-compose.production.yml axum-blog
         log_success "Production deployment initiated"
         log_info "Check status with: $0 prod status"
         log_info "View logs with:   $0 prod logs"
@@ -265,7 +265,7 @@ case $ENVIRONMENT in
         ;;
     "update")
         log_step "Updating production services..."
-        docker stack deploy -c docker-compose.yml -c docker-compose.prod.yml axum-blog
+        docker stack deploy -c docker-compose.yml -c docker-compose.production.yml axum-blog
         log_success "Production services updated"
         ;;
     "rollback")
