@@ -2,7 +2,8 @@ mod utils;
 
 #[tokio::test]
 pub async fn subscribe_returns_200_for_valid_form() {
-    let address = utils::spawn_app().await;
+    let app = utils::spawn_app().await;
+    let address = app.address;
 
     let client = reqwest::Client::new();
     let body = "name=genuine&email=genuine.basilnt@gmail.com";
@@ -19,7 +20,8 @@ pub async fn subscribe_returns_200_for_valid_form() {
 
 #[tokio::test]
 pub async fn subscribe_returns_400_for_invalid_body() {
-    let address = utils::spawn_app().await;
+    let app = utils::spawn_app().await;
+    let address = app.address;
     let client = reqwest::Client::new();
 
     let invalid_bodies = vec![

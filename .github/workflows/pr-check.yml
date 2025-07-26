@@ -1,0 +1,66 @@
+name: Pull Request Checks
+
+on:
+  pull_request:
+    branches: [ master ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test and Lint
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: test_user
+          POSTGRES_DB: blog_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+
+    - name: Install sqlx-cli
+      run: cargo install sqlx-cli --no-default-features --features native-tls,postgres
+
+    - name: Cache Rust dependencies
+      uses: Swatinem/rust-cache@v2
+      with:
+        cache-on-failure: true
+
+    - name: Check formatting
+      run: cargo fmt --all -- --check
+
+    - name: Run Clippy
+      run: cargo clippy --all-targets --all-features -- -D warnings
+
+    - name: Run database migrations
+      run: sqlx migrate run
+      env:
+        DATABASE_URL: postgresql://test_user:test_password@localhost:5432/blog_test
+
+    - name: Run all tests
+      run: cargo test
+      env:
+        DATABASE_URL: postgresql://test_user:test_password@localhost:5432/blog_test
+
+    - name: Check build
+      run: cargo build --release
+      env:
+        DATABASE_URL: postgresql://test_user:test_password@localhost:5432/blog_test

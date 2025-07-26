@@ -1,0 +1,186 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  CARGO_TERM_COLOR: always
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: test_user
+          POSTGRES_DB: blog_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+
+    - name: Install sqlx-cli
+      run: cargo install sqlx-cli --no-default-features --features native-tls,postgres
+
+    - name: Cache Rust dependencies
+      uses: Swatinem/rust-cache@v2
+      with:
+        cache-on-failure: true
+
+    - name: Check formatting
+      run: cargo fmt --all -- --check
+
+    - name: Run Clippy
+      run: cargo clippy --all-targets --all-features -- -D warnings
+
+    - name: Run database migrations
+      run: sqlx migrate run
+      env:
+        DATABASE_URL: postgresql://test_user:test_password@localhost:5432/blog_test
+
+    - name: Run unit tests
+      run: cargo test --lib
+      env:
+        DATABASE_URL: postgresql://test_user:test_password@localhost:5432/blog_test
+
+    - name: Run integration tests
+      run: cargo test --test health_check --test subscriptions
+      env:
+        DATABASE_URL: postgresql://test_user:test_password@localhost:5432/blog_test
+
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache Rust dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Run security audit
+      run: |
+        cargo install cargo-audit
+        cargo audit
+
+  build:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+      image-uri: ${{ steps.build.outputs.image-uri }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=sha,prefix=master-
+          type=raw,value=latest
+
+    - name: Build and push Docker image
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.ref == 'refs/heads/master'
+    environment: production
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Prepare deployment
+      run: |
+        echo "🚀 Starting production deployment"
+        echo "Image: ${{ needs.build.outputs.image-uri }}"
+        echo "Commit: ${{ github.sha }}"
+        echo "Branch: ${{ github.ref_name }}"
+
+    - name: Run database migrations
+      run: |
+        echo "📊 Running database migrations"
+        # This is where you'd run migrations in production
+        # You might need to set up access to your production database
+        # Example approaches:
+        # 1. SSH to production server and run: sqlx migrate run
+        # 2. Use a migration job in your deployment
+        # 3. Include migrations in your deploy.sh script
+        echo "Note: Configure production database access for migrations"
+
+    - name: Deploy application
+      run: |
+        echo "🔄 Deploying application"
+        # This is where you'd use your deploy.sh script or deployment commands
+        # Example: ./scripts/deploy.sh prod deploy
+        # Or SSH to production server and pull the new image
+        echo "Image to deploy: ${{ needs.build.outputs.image-uri }}"
+        echo "Configure your production deployment here"
+
+    - name: Health check
+      run: |
+        echo "🏥 Running post-deployment health checks"
+        # Add health check logic here
+        # This could ping your health endpoint or run smoke tests
+        echo "Configure health checks for your deployed application"
+
+    - name: Deployment success
+      run: |
+        echo "✅ Deployment completed successfully!"
+        echo "Environment: Production"
+        echo "Commit: ${{ github.sha }}"
+        echo "Image: ${{ needs.build.outputs.image-uri }}"
