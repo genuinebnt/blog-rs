@@ -65,7 +65,7 @@ pub async fn router(opt: PgConnectOptions) -> Router {
                     },
                 ),
         )
-        .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid::default()))
+        .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))
         .layer(PropagateRequestIdLayer::x_request_id())
         .with_state(app_state)
 }

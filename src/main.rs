@@ -3,12 +3,13 @@ use tokio::net::TcpListener;
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
-    let _ = axum_blog::logger::init_logger();
+    axum_blog::logger::init_logger();
     tracing::info!("Logger initialized");
     let settings = axum_blog::config::get_configuration().expect("Failed to read configuration");
     tracing::info!(
         "Starting server on {}:{}",
-        settings.application.host, settings.application.port
+        settings.application.host,
+        settings.application.port
     );
     let listener = TcpListener::bind(format!(
         "{}:{}",

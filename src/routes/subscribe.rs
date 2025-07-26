@@ -2,8 +2,6 @@ use crate::startup::AppState;
 use axum::{Form, extract::State, response::IntoResponse, http::HeaderMap};
 use reqwest::StatusCode;
 use std::sync::Arc;
-use axum::response::Response;
-use axum::http::header;
 
 #[derive(Debug, serde::Deserialize)]
 pub struct FormData {
@@ -20,7 +18,7 @@ pub async fn subscribe(
         .get("x-request-id")
         .and_then(|value| value.to_str().ok())
         .unwrap_or("unknown");
-    
+
     tracing::info!(request_id = %request_id, "Received subscription request: {:?}", form_data);
     // Insert the subscriber into the database
     match sqlx::query!(
