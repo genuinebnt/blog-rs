@@ -1,5 +1,5 @@
 use crate::startup::AppState;
-use axum::{Form, extract::State, response::IntoResponse, http::HeaderMap};
+use axum::{Form, extract::State, http::HeaderMap, response::IntoResponse};
 use reqwest::StatusCode;
 use std::sync::Arc;
 
@@ -36,12 +36,16 @@ pub async fn subscribe(
         Err(e) => {
             tracing::error!("Failed to add subscriber: {}", e);
             let mut error_response = StatusCode::INTERNAL_SERVER_ERROR.into_response();
-            error_response.headers_mut().insert("x-request-id", request_id.parse().unwrap());
+            error_response
+                .headers_mut()
+                .insert("x-request-id", request_id.parse().unwrap());
             return error_response;
         }
     };
 
     let mut response = StatusCode::OK.into_response();
-    response.headers_mut().insert("x-request-id", request_id.parse().unwrap());
+    response
+        .headers_mut()
+        .insert("x-request-id", request_id.parse().unwrap());
     response
 }
