@@ -2,4 +2,12 @@
 .env*
 !.env.example
 init.sql
+.vscode
+.idea
+*.iml
+*.log
+*.swp
+.DS_Store
+*.bak
+*.tmp
 
