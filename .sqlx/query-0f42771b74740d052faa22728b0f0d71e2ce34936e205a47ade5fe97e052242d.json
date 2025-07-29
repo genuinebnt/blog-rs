@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO users (id, email, name, password, created_at) VALUES ($1, $2, $3, $4, $5)",
+  "query": "INSERT INTO subscriptions(id, email, name, subscribed_at) VALUES ($1, $2, $3, $4)",
   "describe": {
     "columns": [],
     "parameters": {
@@ -8,11 +8,10 @@
         "Uuid",
         "Text",
         "Text",
-        "Text",
         "Timestamptz"
       ]
     },
     "nullable": []
   },
-  "hash": "1483b2e662c72f2faa018d7257bf02487489ed3dbf85d4acda64cd8e71807696"
+  "hash": "0f42771b74740d052faa22728b0f0d71e2ce34936e205a47ade5fe97e052242d"
 }

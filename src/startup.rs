@@ -1,15 +1,17 @@
 use std::sync::Arc;
 
 use axum::{
-    Router,
+    Router, middleware,
     routing::{get, post},
 };
 use http;
 use sqlx::postgres::PgConnectOptions;
+use tower::ServiceBuilder;
 use tower_http::{
     request_id::{MakeRequestId, PropagateRequestIdLayer, RequestId, SetRequestIdLayer},
     trace::TraceLayer,
 };
+use tracing::info_span;
 use uuid::Uuid;
 
 use crate::routes::{health_check::health_check, subscribe::subscribe};
@@ -17,16 +19,6 @@ use crate::routes::{health_check::health_check, subscribe::subscribe};
 #[derive(Debug)]
 pub struct AppState {
     pub db_pool: sqlx::PgPool,
-}
-
-#[derive(Clone, Default)]
-pub struct MakeRequestUuid;
-
-impl MakeRequestId for MakeRequestUuid {
-    fn make_request_id<B>(&mut self, _request: &http::Request<B>) -> Option<RequestId> {
-        let request_id = Uuid::new_v4().to_string().parse().ok()?;
-        Some(RequestId::new(request_id))
-    }
 }
 
 pub async fn router(opt: PgConnectOptions) -> Router {
@@ -39,33 +31,7 @@ pub async fn router(opt: PgConnectOptions) -> Router {
         .route("/health_check", get(health_check))
         .route("/subscribe", post(subscribe))
         .layer(
-            TraceLayer::new_for_http()
-                .make_span_with(|request: &http::Request<_>| {
-                    let request_id = request
-                        .headers()
-                        .get("x-request-id")
-                        .and_then(|value| value.to_str().ok())
-                        .unwrap_or("unknown");
-
-                    tracing::info_span!(
-                        "http_request",
-                        method = ?request.method(),
-                        uri = ?request.uri(),
-                        request_id = %request_id,
-                    )
-                })
-                .on_request(|_request: &http::Request<_>, _span: &tracing::Span| {
-                    tracing::info!("started processing request")
-                })
-                .on_response(
-                    |_response: &http::Response<_>,
-                     latency: std::time::Duration,
-                     _span: &tracing::Span| {
-                        tracing::info!(latency = ?latency, "finished processing request")
-                    },
-                ),
+            ServiceBuilder::new().layer(middleware::from_fn(crate::middleware::trace_middleware)),
         )
-        .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))
-        .layer(PropagateRequestIdLayer::x_request_id())
         .with_state(app_state)
 }

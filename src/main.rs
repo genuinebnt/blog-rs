@@ -3,9 +3,9 @@ use tokio::net::TcpListener;
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
-    axum_blog::logger::init_logger();
-    tracing::info!("Logger initialized");
+    axum_blog::logger::init_logger("blog".to_string(), "info".to_string(), std::io::stdout);
     let settings = axum_blog::config::get_configuration().expect("Failed to read configuration");
+    tracing::info!("Configuration loaded: {:?}", settings);
     tracing::info!(
         "Starting server on {}:{}",
         settings.application.host,

@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -e
+set -x
 
 # Colors for output
 RED='\033[0;31m'
@@ -72,7 +73,7 @@ load_env() {
 
 # Function to check if we're in Docker context
 check_docker_context() {
-    if [ "$USE_DOCKER" = "true" ] || [ "$ENVIRONMENT" = "prod" ]; then
+    if [ "$USE_DOCKER" = "true" ] || [ "$ENVIRONMENT" = "production" ]; then
         return 0
     fi
     return 1
@@ -82,11 +83,12 @@ check_docker_context() {
 run_sqlx() {
     if check_docker_context; then
         log_info "Running sqlx via Docker..."
-        docker run --rm --network axum-blog_app-network \
-            -v "$(pwd)/migrations:/migrations" \
+        docker run --rm \
+            -v "$(pwd)":/app \
+            -w /app \
             -e DATABASE_URL="$DATABASE_URL" \
-            --workdir /migrations \
-            migrate/migrate -path=/migrations -database="$DATABASE_URL" "$@"
+            keyshelf/rust:1.82.0-slim-bookworm-sqlx \
+            migrate run
     else
         log_info "Running sqlx locally..."
         sqlx "$@"
@@ -104,7 +106,7 @@ case $ENVIRONMENT in
     ;;
 *)
     log_error "Invalid environment: $ENVIRONMENT"
-    log_info "Valid environments: dev, prod, staging"
+    log_info "Valid environments: development, production"
     exit 1
     ;;
 esac
@@ -119,7 +121,7 @@ if [ -z "$DATABASE_URL" ]; then
 fi
 
 # For development, construct the Docker-aware DATABASE_URL if needed
-if [ "$ENVIRONMENT" = "dev" ] && [ -n "$APP_DATABASE__HOST" ]; then
+if [ "$ENVIRONMENT" = "development" ]; then
     DB_HOST="$APP_DATABASE__HOST"
     DB_PORT="$APP_DATABASE__PORT"
     DB_USER="$APP_DATABASE__USERNAME"

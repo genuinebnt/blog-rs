@@ -9,6 +9,15 @@ pub struct FormData {
     pub email: String,
 }
 
+#[tracing::instrument(
+    name = "Adding a subscriber",
+    skip(form_data, state, headers),
+    fields(
+        request_id = %headers.get("x-request-id").and_then(|v| v.to_str().ok()).unwrap_or("unknown"),
+        subscriber_email = %form_data.email,
+        subscriber_name = %form_data.name
+    )
+)]
 pub async fn subscribe(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,
@@ -22,11 +31,10 @@ pub async fn subscribe(
     tracing::info!(request_id = %request_id, "Received subscription request: {:?}", form_data);
     // Insert the subscriber into the database
     match sqlx::query!(
-        "INSERT INTO users (id, email, name, password, created_at) VALUES ($1, $2, $3, $4, $5)",
+        "INSERT INTO subscriptions(id, email, name, subscribed_at) VALUES ($1, $2, $3, $4)",
         uuid::Uuid::new_v4(),
         form_data.email,
         form_data.name,
-        "temporary_password", // In a real app, this would be hashed
         chrono::Utc::now()
     )
     .execute(&state.db_pool)
@@ -35,11 +43,7 @@ pub async fn subscribe(
         Ok(_) => tracing::info!("Subscriber added: {}", form_data.email),
         Err(e) => {
             tracing::error!("Failed to add subscriber: {}", e);
-            let mut error_response = StatusCode::INTERNAL_SERVER_ERROR.into_response();
-            error_response
-                .headers_mut()
-                .insert("x-request-id", request_id.parse().unwrap());
-            return error_response;
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
         }
     };
 

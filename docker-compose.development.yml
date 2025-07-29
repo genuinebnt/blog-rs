@@ -1,5 +1,11 @@
 services:
-  app:
+  app-dev:
+    build: .
+    depends_on:
+      - db-dev
+    extends:
+      file: docker-compose.yml
+      service: app
     environment:
       - RUST_LOG=debug
       - CARGO_INCREMENTAL=1
@@ -9,12 +15,14 @@ services:
       - target-cache:/app/target
     command: cargo watch -x run
 
-  db:
+  db-dev:
+    extends:
+      file: docker-compose.yml
+      service: db
     ports:
       - "5432:5432"
-    environment:
-      - POSTGRES_PASSWORD=password
 
 volumes:
+  postgres_data:
   cargo-cache:
   target-cache:

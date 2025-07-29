@@ -23,9 +23,6 @@ services:
       # Only mount source code in development
       - ${VOLUME_MOUNT:-/dev/null}:/app/src
       - ${CARGO_MOUNT:-/dev/null}:/usr/local/cargo/registry
-    depends_on:
-      - db
-      #- redis
     restart: unless-stopped
 
   db:
